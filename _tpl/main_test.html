@@ -39,7 +39,7 @@
             is({ result: {}, isQuerying: false, term: null }, queryReducer(undefined, clearQuery()));
         },
         'action SET_FILE': function() {
-            is({ name: "foo.bar" }, fileReducer(undefined, setFile("foo.bar")));
+            is({ name: "foo.bar", content: null }, fileReducer(undefined, setFile("foo.bar")));
         },
         'action SET_FILE_CONTENT': function () {
             is({ content: "print 'hello'" }, fileReducer(undefined, fileContent("print 'hello'")));

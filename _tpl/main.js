@@ -6,7 +6,7 @@ const SET_QUERY_TERM = 'SET_QUERY';
 const SET_QUERY_RESULT = 'SET_QUERY_RESULT';
 const SET_FILE = 'SET_FILE';
 const SET_FILE_CONTENT = 'SET_FILE_CONTENT';
-const INITIAL_QUERY = { result: {}, isQuerying: false };
+const INITIAL_QUERY = { isQuerying: false, result: {} };
 
 function queryReducer(state = INITIAL_QUERY, action) {
     switch (action.type) {
@@ -30,7 +30,7 @@ function queryReducer(state = INITIAL_QUERY, action) {
 function fileReducer(state = {}, action) {
     switch (action.type) {
         case SET_FILE:
-            return Object.assign({}, state, { name: action.value });
+            return Object.assign({}, state, { name: action.value, content: null });
 
         case SET_FILE_CONTENT:
             return Object.assign({}, state, { content: action.value });
@@ -147,6 +147,34 @@ function regSub(store, path, fn) {
     });
 }
 
+function renderQueryState(el) {
+    return isQuerying => {
+        if (isQuerying) {
+            m.render(el, m('i', { class: 'fas fa-spinner', 'aria-hidden': true }, ""));
+            return;
+        }
+        m.render(el, m('i', { class: 'fas fa-search', 'aria-hidden': true }, ""));
+    };
+}
+
+function renderCode(code, highlight) {
+    return (file) => {
+        let name = file.name;
+        let content = file.content;
+        if (name == null || name === '') {
+            return;
+        }
+        let segments = name.split('.');
+        let last = segments.length - 1;
+        let className = 'line-numbers  language-' + segments[last];
+        code.parentElement.className =  className;
+        code.innerHTML = content || '';
+        if (content == null) {
+            return;
+        }
+        highlight();
+    }
+}
 function Exec(breadcrumbs, code, files, search, searchSpinner) {
     let rootReducer = Redux.combineReducers({
         query: queryReducer,
@@ -155,6 +183,7 @@ function Exec(breadcrumbs, code, files, search, searchSpinner) {
     let store = Redux.createStore(rootReducer);
 
     let dispatchClear = () => store.dispatch(clearQuery());
+    let dispatchQueryTerm = e => store.dispatch(setQueryTerm(e.target.value));
     let query = (v) => {
         if (v == null) return;
         store.dispatch(fetchQueryResult());
@@ -166,23 +195,11 @@ function Exec(breadcrumbs, code, files, search, searchSpinner) {
         fetch('/files/'+v)
             .then(response => response.text())
             .then(text => store.dispatch(fileContent(text))) };
-    let renderCode = text => {
-        code.innerHTML = text || '';
-        Prism.highlightAll() };
-    let renderQueryState = el => {
-        return isQuerying => {
-            if (isQuerying) {
-                m.render(el, m('i', { class: 'fas fa-spinner', 'aria-hidden': true }, ""));
-                return;
-            }
-            m.render(el, m('i', { class: 'fas fa-search', 'aria-hidden': true }, ""));
-        } };
 
-    search.addEventListener('input', e => store.dispatch(setQueryTerm(e.target.value)));
-    search.addEventListener('focus', e => store.dispatch(setQueryTerm(e.target.value)));
-    //search.addEventListener('blur', e => { setTimeout(dispatchClear, 50) })
+    search.addEventListener('input', dispatchQueryTerm);
+    search.addEventListener('focus', dispatchQueryTerm);
 
-    regSub(store, ['file', 'content'], renderCode);
+    regSub(store, ['file'], renderCode(code, Prism.highlightAll));
     regSub(store, ['file', 'name'], renderBreadcrumbs(breadcrumbs));
     regSub(store, ['file', 'name'], dispatchClear);
     regSub(store, ['file', 'name'], fetchFile);

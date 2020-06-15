@@ -28,8 +28,8 @@ func New(size int) *Index {
 
 // Index is a matrix that counts word occurrences in documents.
 type Index struct {
-	Words map[string]*WordColumn
-	Names []string
+	Words        map[string]*WordColumn
+	Names        []string
 	sync.RWMutex `msg:"-"`
 }
 
@@ -227,4 +227,3 @@ func ExactMatch(needle string, index *Index) map[string]bool {
 	}
 	return exact
 }
-

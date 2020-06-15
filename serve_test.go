@@ -10,14 +10,14 @@ import (
 
 func Test_routes_ok(t *testing.T) {
 	cases := map[string]struct {
-		method string
-		path string
-		body io.Reader
+		method      string
+		path        string
+		body        io.Reader
 		contentType string
 	}{
-		"search": {http.MethodGet, "/search?q=development", nil, ApplicationJson},
-		"file": {http.MethodGet, "/files/hello.html", nil, TextHtml},
-		"root": {http.MethodGet, "/", nil, TextHtml},
+		"search":  {http.MethodGet, "/search?q=development", nil, ApplicationJson},
+		"file":    {http.MethodGet, "/files/hello.html", nil, TextHtml},
+		"root":    {http.MethodGet, "/", nil, TextHtml},
 		"main.js": {http.MethodGet, "/main.js", nil, ApplicationJs},
 	}
 	for name, tc := range cases {

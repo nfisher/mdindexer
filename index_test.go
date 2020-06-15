@@ -148,4 +148,3 @@ func Test_update_removing_word_should_update_search_terms(t *testing.T) {
 		t.Errorf("index.Search(`world`) mismatch (-want +got)\n%s", cmp.Diff(expected, docs))
 	}
 }
-

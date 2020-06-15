@@ -9,8 +9,9 @@ all: $(SRC)
 
 .PHONY: dep
 dep:
-	go get -u golang.org/x/lint/golint
-	go get -u github.com/tinylib/msgp
+	go get -v golang.org/x/lint/golint
+	go get -v github.com/tinylib/msgp
+	go get -v github.com/rakyll/statik
 
 .PHONY: test
 test: cover.out

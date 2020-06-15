@@ -22,8 +22,12 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
+    - name: Fetch Dependencies
+      run: make dep
+
     - name: Build
       run: make
 
     - name: Test
-      run: go test -v .
+      run: make test
+

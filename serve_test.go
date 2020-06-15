@@ -16,7 +16,7 @@ func Test_routes_ok(t *testing.T) {
 		contentType string
 	}{
 		"search": {http.MethodGet, "/search?q=development", nil, ApplicationJson},
-		"file": {http.MethodGet, "/files/2018-04-06-Docker-for-Development.md", nil, TextPlain},
+		"file": {http.MethodGet, "/files/hello.html", nil, TextHtml},
 		"root": {http.MethodGet, "/", nil, TextHtml},
 		"main.js": {http.MethodGet, "/main.js", nil, ApplicationJs},
 	}

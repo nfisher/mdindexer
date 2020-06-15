@@ -77,7 +77,7 @@ var TinyTest = {
         }
         setTimeout(function() { // Give document a chance to complete
             if (window.document && document.body) {
-                document.body.style.backgroundColor = (failures === 0 ? '#99ff99' : '#ff9999');
+                document.body.style.backgroundColor = (failures === 0 ? '#60b360' : '#ff9999');
             }
         }, 0);
     },

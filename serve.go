@@ -10,7 +10,7 @@ import (
 	_ "github.com/nfisher/mdindexer/statik"
 )
 
-//go:generate statik -src=./_tpl
+//go:generate statik -m -src=./_tpl
 
 const (
 	HeaderContentType = `Content-type`

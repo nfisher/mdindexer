@@ -15,7 +15,6 @@ import (
 const (
 	HeaderContentType = `Content-type`
 	TextHtml          = `text/html; charset=utf-8`
-	TextPlain         = `text/plain; charset=utf-8`
 	ApplicationJson   = `application/json`
 	ApplicationJs     = `application/javascript`
 )

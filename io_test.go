@@ -59,5 +59,3 @@ func Test_document_list(t *testing.T) {
 			cmp.Diff(list, expected))
 	}
 }
-
-

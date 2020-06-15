@@ -1,10 +1,16 @@
 SRC := $(shell find . -name \*.go)
 
+
 .PHONY: all
 all: $(SRC)
 	go get -v
 	go generate
 	go install -v
+
+.PHONY: dep
+dep:
+	go get -u golang.org/x/lint/golint
+	go get -u github.com/tinylib/msgp
 
 .PHONY: test
 test: cover.out

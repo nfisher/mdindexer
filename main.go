@@ -1,19 +1,15 @@
 package main
 
 import (
-	"bufio"
 	"compress/gzip"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"regexp"
 	"runtime"
 	"sync"
 	"time"
 
-	"github.com/fsnotify/fsevents"
 	"github.com/tinylib/msgp/msgp"
 )
 
@@ -69,28 +65,6 @@ func main() {
 		log.Fatalf("writeFile=failed filename=%s error='%v'\n", outFilename, err)
 	}
 
-	dev, err := fsevents.DeviceForPath(start)
-	if err != nil {
-		log.Fatalf("Failed to retrieve device for path: %v", err)
-	}
-
-	es := &fsevents.EventStream{
-		Paths:   []string{start},
-		Latency: 500 * time.Millisecond,
-		Device:  dev,
-		Flags:   fsevents.FileEvents | fsevents.WatchRoot}
-	es.Start()
-	ec := es.Events
-
-	go func() {
-		re := regexp.MustCompile(pattern)
-		for msg := range ec {
-			for _, event := range msg {
-				logEvent(event, re)
-			}
-		}
-	}()
-
 	mux := BuildRoutes(start, index)
 	log.Println("binding to 127.0.0.1:8000")
 	err = http.ListenAndServe("127.0.0.1:8000", mux)
@@ -98,61 +72,6 @@ func main() {
 		log.Fatalf("listen=failed error='%v'\n", err)
 	}
 	//consoleLoop(index)
-}
-
-var noteDescription = map[fsevents.EventFlags]string{
-	fsevents.MustScanSubDirs: "MustScanSubdirs",
-	fsevents.UserDropped:     "UserDropped",
-	fsevents.KernelDropped:   "KernelDropped",
-	fsevents.EventIDsWrapped: "EventIDsWrapped",
-	fsevents.HistoryDone:     "HistoryDone",
-	fsevents.RootChanged:     "RootChanged",
-	fsevents.Mount:           "Mount",
-	fsevents.Unmount:         "Unmount",
-
-	fsevents.ItemCreated:       "Created",
-	fsevents.ItemRemoved:       "Removed",
-	fsevents.ItemInodeMetaMod:  "InodeMetaMod",
-	fsevents.ItemRenamed:       "Renamed",
-	fsevents.ItemModified:      "Modified",
-	fsevents.ItemFinderInfoMod: "FinderInfoMod",
-	fsevents.ItemChangeOwner:   "ChangeOwner",
-	fsevents.ItemXattrMod:      "XAttrMod",
-	fsevents.ItemIsFile:        "IsFile",
-	fsevents.ItemIsDir:         "IsDir",
-	fsevents.ItemIsSymlink:     "IsSymLink",
-}
-
-func logEvent(event fsevents.Event, re *regexp.Regexp) {
-	if !re.MatchString(event.Path) {
-		return
-	}
-	note := ""
-	for bit, description := range noteDescription {
-		if event.Flags&bit == bit {
-			note += description + " "
-		}
-	}
-	log.Printf("EventID: %d Path: %s Flags: %s", event.ID, event.Path, note)
-}
-
-func consoleLoop(index *Index) {
-	scanner := bufio.NewScanner(os.Stdin)
-	for {
-		fmt.Println("\nEnter a query:")
-		if !scanner.Scan() {
-			break
-		}
-		search := scanner.Text()
-		fmt.Println()
-
-		ts := time.Now()
-		exact := ExactMatch(search, index)
-		for k := range exact {
-			fmt.Println(k)
-		}
-		fmt.Println("found", len(exact), "entries in", time.Now().Sub(ts))
-	}
 }
 
 func readDoc(fnch chan string, doch chan *Document, wg *sync.WaitGroup, docClose *sync.Once, stopWords StopWords) {

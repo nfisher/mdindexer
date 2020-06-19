@@ -175,6 +175,7 @@ function renderCode(code, highlight) {
         highlight();
     }
 }
+
 function Exec(breadcrumbs, code, files, search, searchSpinner) {
     let rootReducer = Redux.combineReducers({
         query: queryReducer,
@@ -196,17 +197,38 @@ function Exec(breadcrumbs, code, files, search, searchSpinner) {
             .then(response => response.text())
             .then(text => store.dispatch(fileContent(text))) };
 
+    let setLocationHash = (v) => {
+      if (v == null) return;
+      location.hash = encodeURIComponent(v);
+    };
+
+    let lastHash = null;
+    let getLocationHash = () => {
+        if (location.hash === lastHash) {
+            return;
+        }
+        lastHash = location.hash;
+        if (location.hash.length < 2) {
+            return;
+        }
+        let filename = decodeURIComponent(location.hash.slice(1));
+        store.dispatch(setFile(filename));
+    };
+
     search.addEventListener('input', dispatchQueryTerm);
     search.addEventListener('focus', dispatchQueryTerm);
+    window.addEventListener('hashchange', getLocationHash);
 
     regSub(store, ['file'], renderCode(code, Prism.highlightAll));
     regSub(store, ['file', 'name'], renderBreadcrumbs(breadcrumbs));
     regSub(store, ['file', 'name'], dispatchClear);
     regSub(store, ['file', 'name'], fetchFile);
+    regSub(store, ['file', 'name'], setLocationHash)
     regSub(store, ['query', 'isQuerying'], renderQueryState(searchSpinner));
     regSub(store, ['query', 'result'], renderFileList(files, store.dispatch));
     regSub(store, ['query', 'term'], query);
 
+    getLocationHash()
     search.focus();
 }
 

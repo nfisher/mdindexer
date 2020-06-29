@@ -57,21 +57,14 @@ func main() {
 	wg.Wait()
 	wgig.Wait()
 
-	log.Println("parsed", index.Capacity(), "files with", index.WordCount(), "distinct words in", time.Now().Sub(ts))
-
-	outFilename := "index.msgp"
-	err = writeFile(outFilename, index)
-	if err != nil {
-		log.Fatalf("writeFile=failed filename=%s error='%v'\n", outFilename, err)
-	}
+	log.Printf("documents=%d words=%d latency=%v\n", index.Capacity(), index.WordCount(), time.Now().Sub(ts))
 
 	mux := BuildRoutes(start, index)
-	log.Println("binding to 127.0.0.1:8000")
+	log.Println("addr=127.0.0.1:8000")
 	err = http.ListenAndServe("127.0.0.1:8000", mux)
 	if err != nil {
 		log.Fatalf("listen=failed error='%v'\n", err)
 	}
-	//consoleLoop(index)
 }
 
 func readDoc(fnch chan string, doch chan *Document, wg *sync.WaitGroup, docClose *sync.Once, stopWords StopWords) {

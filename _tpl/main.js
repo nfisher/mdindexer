@@ -48,16 +48,16 @@ function renderFileList(files, dispatch) {
         }
         let a = []
         let i = 0;
-        for(let filename of json.Docs) {
+        for(let doc of json.Docs) {
             if (i++ > 18) break;
-            a.push(renderFileItem(filename, dispatch));
+            a.push(renderFileItem(doc.Document, dispatch));
         }
         let panel = m('nav', {class: 'panel has-background-white'}, a);
         m.render(files, panel);
     }
 }
 
-const maxWidth = 60;
+const maxWidth = 90;
 const leftSize = (maxWidth-3)/3;
 const rightSize = leftSize * 2;
 

@@ -3,8 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"sync"
+
+	"github.com/nfisher/mdindexer/edit"
 )
 
 //go:generate msgp
@@ -34,77 +37,115 @@ type Index struct {
 }
 
 // Capacity returns the number of documents in the index.
-func (i *Index) Capacity() int {
-	i.RLock()
-	defer i.RUnlock()
-	return cap(i.Names)
+func (z *Index) Capacity() int {
+	z.RLock()
+	defer z.RUnlock()
+	return cap(z.Names)
 }
 
 // WordCount provides the number of Words in the index.
-func (i *Index) WordCount() int {
-	i.RLock()
-	defer i.RUnlock()
-	return len(i.Words)
+func (z *Index) WordCount() int {
+	z.RLock()
+	defer z.RUnlock()
+	return len(z.Words)
 }
 
 // Update incorporates the documents word count frequency into the index.
-func (i *Index) Update(doc *Document) {
-	i.Lock()
-	defer i.Unlock()
+func (z *Index) Update(doc *Document) {
+	z.Lock()
+	defer z.Unlock()
 	var isNew bool
-	pos := i.byName(doc.Name)
+	pos := z.byName(doc.Name)
 	if pos == nameNotFound {
-		pos = len(i.Names)
-		i.Names = append(i.Names, doc.Name)
+		pos = len(z.Names)
+		z.Names = append(z.Names, doc.Name)
 		isNew = true
 	}
 
 	cur := make(map[string]bool)
 	for word, count := range doc.WordCount {
 		cur[word] = true
-		col, ok := i.Words[word]
+		col, ok := z.Words[word]
 		if !ok {
 			col = NewColumn(word)
 		}
 		col.Upsert(pos, count)
-		i.Words[word] = col
+		z.Words[word] = col
 	}
 
 	if !isNew {
-		i.clean(pos, cur)
+		z.clean(pos, cur)
 	}
 }
 
-func (i *Index) clean(pos int, cur map[string]bool) {
-	for word, col := range i.Words {
+func (z *Index) clean(pos int, cur map[string]bool) {
+	for word, col := range z.Words {
 		if cur[word] {
 			continue
 		}
 		col.Remove(pos)
 		if col.Empty() {
-			delete(i.Words, word)
+			delete(z.Words, word)
 		}
 	}
 }
 
-// DocList provides a list of documents found in the index.
-type DocList []string
-
 // Search returns the list of documents that contain needle.
-func (i *Index) Search(needle string) (DocList, error) {
-	i.RLock()
-	defer i.RUnlock()
-	col, ok := i.Words[needle]
-	if !ok {
+func (z *Index) Search(needle string) (DocList, error) {
+	z.RLock()
+	defer z.RUnlock()
+	if 1 > len(z.Words) {
 		return nil, ErrWordNotIndexed
 	}
-
-	var docs DocList
-	col.Apply(func(id int, count int) {
-		if count > 0 {
-			doc := i.byId(id)
-			docs = append(docs, doc)
+	var words = Words{{needle, 0}}
+	_, ok := z.Words[needle]
+	if !ok {
+		words = Words{}
+		for k := range z.Words {
+			d := edit.Distance2(needle, k)
+			words = append(words, WordDist{k, d})
 		}
+		sort.Sort(words)
+		end := len(words)
+		min := words[0].Distance
+		for i := 1; i < len(words); i++ {
+			if words[i].Distance > min {
+				break
+			}
+			end = i
+		}
+		words = words[0:end]
+	}
+
+	pos := make(map[string]int)
+	var docs = make(DocList, 0, len(words))
+	for _, word := range words {
+		col := z.Words[word.Word]
+		col.Apply(func(id int, count int) {
+			if count > 0 {
+				doc := z.byId(id)
+				relevance := DocRelevance{Document: doc}
+				relevance.Count = count
+				relevance.Distance = word.Distance
+				p, ok := pos[doc]
+				if !ok {
+					p = len(docs)
+					docs = append(docs, relevance)
+					pos[doc] = p
+					return
+				}
+				if docs[p].Distance < relevance.Distance {
+					return
+				}
+
+				docs[p].Distance = relevance.Distance
+				docs[p].Count = relevance.Count
+			}
+		})
+	}
+
+	sort.Slice(docs, func(i, j int) bool {
+		return docs[i].Count < docs[j].Count
 	})
 
 	return docs, nil
@@ -112,18 +153,18 @@ func (i *Index) Search(needle string) (DocList, error) {
 
 const nameNotFound = -1
 
-func (i *Index) byName(name string) int {
+func (z *Index) byName(name string) int {
 	var id int
-	for ; id < len(i.Names); id++ {
-		if name == i.Names[id] {
+	for ; id < len(z.Names); id++ {
+		if name == z.Names[id] {
 			return id
 		}
 	}
 	return nameNotFound
 }
 
-func (i *Index) byId(id int) string {
-	return i.Names[id]
+func (z *Index) byId(id int) string {
+	return z.Names[id]
 }
 
 // NewColumn returns a newly initialised WordColumn.
@@ -142,13 +183,13 @@ type WordColumn struct {
 	idx map[int]int
 }
 
-func (wc *WordColumn) Upsert(pos int, count int) {
+func (z *WordColumn) Upsert(pos int, count int) {
 	// lazily build the index so a read from file does not break
-	if wc.idx == nil {
-		wc.lazyIndex()
+	if z.idx == nil {
+		z.lazyIndex()
 	}
 
-	i, ok := wc.idx[pos]
+	i, ok := z.idx[pos]
 
 	// make a sparse matrices, don't store count < 1
 	if count < 1 {
@@ -157,73 +198,138 @@ func (wc *WordColumn) Upsert(pos int, count int) {
 
 	tup := [2]int{pos, count}
 	if !ok {
-		i := len(wc.Docs)
-		wc.idx[pos] = i
-		wc.Docs = append(wc.Docs, tup)
+		i := len(z.Docs)
+		z.idx[pos] = i
+		z.Docs = append(z.Docs, tup)
 		return
 	}
-	wc.Docs[i] = tup
+	z.Docs[i] = tup
 }
 
-func (wc *WordColumn) lazyIndex() {
-	wc.idx = make(map[int]int)
-	for i, tup := range wc.Docs {
+func (z *WordColumn) lazyIndex() {
+	z.idx = make(map[int]int)
+	for i, tup := range z.Docs {
 		pos := tup[0]
-		wc.idx[pos] = i
+		z.idx[pos] = i
 	}
 }
 
-func (wc *WordColumn) Apply(each func(int, int)) {
-	for _, tup := range wc.Docs {
+func (z *WordColumn) Apply(each func(int, int)) {
+	for _, tup := range z.Docs {
 		if tup[1] > 0 {
 			each(tup[0], tup[1])
 		}
 	}
 }
 
-func (wc *WordColumn) Empty() bool {
+func (z *WordColumn) Empty() bool {
 	var count int
-	wc.Apply(func(i int, i2 int) {
+	z.Apply(func(i int, i2 int) {
 		count++
 	})
 	return count == 0
 }
 
-func (wc *WordColumn) Remove(pos int) {
-	i, ok := wc.idx[pos]
+func (z *WordColumn) Remove(pos int) {
+	i, ok := z.idx[pos]
 	if !ok {
 		return
 	}
-	delete(wc.idx, pos)
+	delete(z.idx, pos)
 	// TODO: should consider compacting the array instead of using 0
-	wc.Docs[i] = [2]int{pos, 0}
+	z.Docs[i] = [2]int{pos, 0}
 }
 
-func ExactMatch(needle string, index *Index) map[string]bool {
-	needle = strings.ToLower(needle)
-	exact := make(map[string]bool)
-	if needle != "" {
-		needles := strings.Split(needle, " ")
-		for _, s := range needles {
-			match := make(map[string]bool)
-			docs, err := index.Search(s)
-			if err != nil {
-				log.Printf("search=failed needle=%s error='%v'\n", s, err)
+// Search executes the query against the index returning a document list.
+func Search(query string, index *Index) ScoreList {
+	var result = make(Scores)
+	if query == "" {
+		return ScoreList{}
+	}
+
+	query = strings.ToLower(query)
+	terms := strings.Split(query, " ")
+	union := make(StrSet)
+	for i, term := range terms {
+		docs, err := index.Search(term)
+		if err != nil {
+			log.Printf("search=failed query=%s error='%v'\n", term, err)
+			continue
+		}
+
+		s := make(StrSet)
+		for _, d := range docs {
+			n := d.Document
+			if i == 0 {
+				result[n] = d.Distance + d.Rank
+				s[n] = true
 				continue
 			}
+			if !union[n] {
+				continue
+			}
+			result[n] += d.Distance + d.Rank
+			s[n] = true
+		}
+		union = s
+	}
 
-			for i := range docs {
-				match[docs[i]] = true
-			}
-			if len(exact) == 0 {
-				exact = match
-			}
-			for k := range exact {
-				if !match[k] {
-					delete(exact, k)
-				}
-			}
+	list := make(ScoreList, 0, len(union))
+	for n := range result {
+		if !union[n] {
+			continue
+		}
+		length := len(n) - len(query)
+		dist := edit.Distance2(query, n) - length
+		list = append(list, Score{Document: n, Rank: result[n], NameDistance: dist})
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].NameDistance < list[j].NameDistance
+	})
+	sort.SliceStable(list, func(i, j int) bool {
+		return list[i].Rank < list[j].Rank
+	})
+
+	return list
+}
+
+type Score struct {
+	Document     string
+	Rank         int
+	NameDistance int
+}
+type ScoreList []Score
+
+type Scores map[string]int
+
+type StrSet map[string]bool
+
+func (s StrSet) Union(o StrSet) StrSet {
+	r := make(StrSet)
+	for k := range s {
+		if o[k] {
+			r[k] = true
 		}
 	}
-	return exact
+	return r
 }
+
+type DocList []DocRelevance
+
+type DocRelevance struct {
+	Document string
+	Count    int
+	Distance int
+	Rank     int
+}
+
+type WordDist struct {
+	Word     string
+	Distance int
+}
+
+type Words []WordDist
+
+func (z Words) Len() int           { return len(z) }
+func (z Words) Swap(i, j int)      { z[i], z[j] = z[j], z[i] }
+func (z Words) Less(i, j int) bool { return z[i].Distance < z[j].Distance }

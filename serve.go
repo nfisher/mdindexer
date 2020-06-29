@@ -32,25 +32,15 @@ func BuildRoutes(path string, index *Index) *http.ServeMux {
 }
 
 type SearchResponse struct {
-	Docs DocList
+	Docs ScoreList
 }
 
 func SearchIndex(index *Index) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var err error
-		enc := json.NewEncoder(w)
-		var resp SearchResponse
 		needle := r.URL.Query().Get("q")
-		var docs = DocList{}
-		if needle != "" {
-			matches := ExactMatch(needle, index)
-			for k := range matches {
-				docs = append(docs, k)
-			}
-		}
+		docs := Search(needle, index)
 		w.Header().Set(HeaderContentType, ApplicationJson)
-		resp.Docs = docs
-		err = enc.Encode(&resp)
+		err := json.NewEncoder(w).Encode(&SearchResponse{Docs: docs})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}

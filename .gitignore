@@ -1,2 +1,3 @@
 *.out
 statik/statik.go
+.idea

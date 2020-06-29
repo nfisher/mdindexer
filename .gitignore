@@ -1,3 +1,4 @@
 *.out
 statik/statik.go
 .idea
+index.msgp

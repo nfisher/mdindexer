@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -19,14 +20,17 @@ const (
 	ApplicationJs     = `application/javascript`
 )
 
-func BuildRoutes(path string, index *Index) *http.ServeMux {
+func BuildRoutes(paths []string, index *Index) *http.ServeMux {
 	files, err := fs.New()
 	if err != nil {
 		log.Fatal(err)
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(files))
-	mux.Handle("/files/", http.StripPrefix("/files/", http.FileServer(http.Dir(path))))
+	for _, p := range paths {
+		prefix := fmt.Sprintf("/files/%s/", p)
+		mux.Handle(prefix, http.StripPrefix("/files/", http.FileServer(http.Dir("."))))
+	}
 	mux.HandleFunc("/search", SearchIndex(index))
 	return mux
 }

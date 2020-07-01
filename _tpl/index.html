@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Project Files</title>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.0/css/bulma.min.css"
-          integrity="sha256-aPeK/N8IHpHsvPBCf49iVKMdusfobKo2oxF8lRruWJg=" crossorigin="anonymous"/>
+    <link href="https://unpkg.com/@primer/css/dist/primer.css" rel="stylesheet" />
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.20.0/themes/prism.min.css"
           integrity="sha256-cuvic28gVvjQIo3Q4hnRpQSNB0aMw3C+kjkR0i+hrWg=" crossorigin="anonymous"/>
     <link rel="stylesheet"
@@ -17,76 +17,76 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0-2/css/all.min.css"
           integrity="sha256-46r060N2LrChLLb5zowXQ72/iKKNiw/lAmygmHExk/o=" crossorigin="anonymous"/>
     <style>
-        body {
-            min-height: 100vh;
-        }
-        code .number {
-            background-color: inherit;
-            border-radius: 0;
-            font-size: inherit;
-            height: inherit;
-            margin-right: inherit;
-            min-width: inherit;
-            padding: 0;
-        }
-        aside.menu {
-            position: fixed;
-            width: 45rem;
-            z-index: 999;
-        }
-        .search {
-            flex-basis: 100%;
-        }
-        .fa-spinner {
-            animation: spin 2s linear infinite;
+        .fa-dumpster-fire {
+            animation: spin 3s linear infinite;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        #blank {
+            min-height:100vh;
+        }
+        #files {
+            width:95%;
+        }
+        .Header .autocomplete-results {
+            color: #24292e;
+        }
+        .fixed {
+            left:0;
+            position:fixed;
+            right:0;
+            top:0;
+            z-index:999;
+        }
+        main {
+            margin:1em;
+            margin-top:9rem;
+        }
+        .input-darkish {
+            color: #fff;
+            background-color: #ffffff26;
+            border-color: transparent;
+        }
+        .input-darkish:focus {
+            color: #24292e;
+            background-color: #ffffff;
+        }
     </style>
 </head>
-<body class="has-background-light has-navbar-fixed-top has-navbar-fixed-bottom">
-<nav class="navbar is-fixed-top" role="navigation" aria-label="main navigation">
-    <section class="container is-fluid">
-        <div class="navbar-menu">
-            <div class="navbar-item is-expanded">
-                <div class="field has-addons search">
-                    <div class="control has-icons-left is-expanded">
-                        <input class="input" type="text" id="search" placeholder="Search" autocomplete="off" autofocus>
-                        <span class="icon is-left" id="searchSpinner">
-                        </span>
-                    </div>
-                </div>
-            </div>
+<body>
+<header class="fixed">
+    <div class="Header">
+        <div class="Header-item">
+            <a href="#" class="Header-link f4 d-flex flex-items-center">
+            <span id="searchSpinner">
+                <i class="fas fa-dumpster"></i>
+            </span>
+            </a>
         </div>
-    </section>
-</nav>
-<section class="container is-fluid">
-    <aside class="menu" id="files">
-    </aside>
-</section>
-<section class="section is-fullheight pt-5">
-    <div class="container is-fluid">
-        <div class="columns">
-            <div class="column">
-                <pre class="line-numbers"><code class="language-go" id="code"></code></pre>
+        <div class="Header-item--full">
+            <div class="position-relative">
+                <input id="search" type="search" class="form-control input-block input-darkish" placeholder="Code search..." />
+                <ul class="autocomplete-results" id="files">
+                </ul>
             </div>
         </div>
     </div>
-</section>
-<navbar class="navbar is-fixed-bottom">
-    <section class="container is-fluid">
-        <div class="navbar-menu">
-            <div class="navbar-item">
-                <nav class="breadcrumb" aria-label="breadcrumbs">
-                    <ul id="breadcrumbs">
-                    </ul>
+    <div class="pagehead bg-gray pb-3 pt-3 border-0 mb-5 border-bottom">
+        <div class="d-flex px-3 px-md-4 px-lg-5">
+            <div class="flex-auto min-width-0 width-fit mr-3">
+                <nav aria-label="Breadcrumb">
+                    <ol id="breadcrumbs">
+                    </ol>
                 </nav>
             </div>
         </div>
-    </section>
-</navbar>
+    </div>
+</header>
+<main>
+    <div class="d-flex flex-column" id="code"></div>
+</main>
 </body>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.20.0/prism.min.js"
         integrity="sha256-3teItwIfMuVB74Alnxw/y5HAZ2irOsCULFff3EgbtEs=" crossorigin="anonymous"></script>

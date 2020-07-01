@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -34,28 +35,31 @@ func WordFrequency(filename string, r io.Reader, stopWords StopWords) *Document 
 	return &Document{WordCount: wordCount}
 }
 
-func DocumentList(start string, expr string) ([]string, error) {
+func DocumentList(start []string, expr string) ([]string, error) {
 	var docs []string
 	re, err := regexp.Compile(expr)
 	if err != nil {
 		return nil, err
 	}
-	err = filepath.Walk(start, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			log.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
-			return err
-		}
-		if info.IsDir() && info.Name() == "target" {
-			return filepath.SkipDir
-		}
-		if !info.IsDir() && re.MatchString(info.Name()) {
-			info.Sys()
-			docs = append(docs, path)
-		}
-		return nil
-	})
+	for _, s := range start {
+		err = filepath.Walk(s, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				log.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
+				return err
+			}
+			if info.IsDir() && info.Name() == "target" {
+				return filepath.SkipDir
+			}
+			if !info.IsDir() && re.MatchString(info.Name()) {
+				info.Sys()
+				docs = append(docs, path)
+			}
+			return nil
+		})
+	}
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(docs[0])
 	return docs, err
 }

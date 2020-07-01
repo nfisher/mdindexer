@@ -1,5 +1,7 @@
 "use strict";
 
+Prism.plugins.autoloader.loadLanguages(['java', 'go', 'javascript']);
+
 const CLEAR_QUERY = 'CLEAR_QUERY';
 const FETCH_QUERY_RESULT = 'FETCH_QUERY_RESULT ';
 const SET_QUERY_TERM = 'SET_QUERY';
@@ -40,20 +42,51 @@ function fileReducer(state = {}, action) {
     }
 }
 
-function renderFileList(files, dispatch) {
-    return function(json) {
-        if (json.Docs == null || json.Docs.length < 1) {
-            m.render(files, []);
-            return;
-        }
-        let a = []
-        let i = 0;
-        for(let doc of json.Docs) {
-            if (i++ > 18) break;
-            a.push(renderFileItem(doc.Document, dispatch));
-        }
-        let panel = m('nav', {class: 'panel has-background-white'}, a);
-        m.render(files, panel);
+let Breadcrumbs = {
+    view: function(vnode) {
+        let {segments} = vnode.attrs;
+        return segments.map((c, i) => {
+            if (i === segments.length - 1) {
+                return m("li", {"class":"breadcrumb-item","aria-current":"page"}, c);
+            }
+            return m("li", {"class":"breadcrumb-item"}, m("a", {"href":"#"}, c));
+        });
+    }
+}
+
+let CodeBlock = {
+    view: function(vnode) {
+        let {className, html} = vnode.attrs;
+        return m("pre", {"class": "line-numbers"},
+            m("code", {"class": className}, [m.trust(html)])
+        );
+    },
+}
+
+let FileList = {
+    view: function (vnode) {
+        let {docs, dispatch} = vnode.attrs;
+        return docs.map((d) => {
+            let filename = d.Document;
+            let key = filename;
+            let label = toLabel(filename);
+            return m(FileItem, {dispatch, filename, key, label})
+        });
+    }
+}
+
+let FileItem = {
+    view: function (vnode) {
+        let {dispatch, filename, label} = vnode.attrs;
+        return m("li", {class: "autocomplete-item", onclick: e => dispatch(setFile(filename))},
+            label);
+    }
+}
+
+let ProgressIndicator = {
+    view: function (vnode) {
+        let c = vnode.attrs.isQuerying ? 'fas fa-dumpster-fire' : 'fas fa-dumpster';
+        return m('i', { class: c, 'aria-hidden': true }, "");
     }
 }
 
@@ -61,34 +94,14 @@ const maxWidth = 90;
 const leftSize = (maxWidth-3)/3;
 const rightSize = leftSize * 2;
 
-function renderFileItem(filename, dispatch) {
-    let label = filename;
+function toLabel(filename) {
     if (filename.length > maxWidth) {
         let start = filename.slice(0, leftSize);
         let pos =  filename.length - rightSize;
         let end = filename.slice(pos, filename.length);
-        label = start + "..." + end;
+        return start + "..." + end;
     }
-    return m("a", {class: "panel-block", onclick: e => dispatch(setFile(filename))}, [m("span", {class: "panel-icon"}, m("i", {class: "fab fa-java"}, "")), label])
-}
-
-function renderBreadcrumbs(breadcrumbs) {
-    return function(filename) {
-        if (filename == null || filename === '') {
-            m.render(breadcrumbs, []);
-            return;
-        }
-        let items = [];
-        let crumbs = filename.split('/');
-        for (let i = 0; i < crumbs.length -1; i++) {
-            let li = m('li', m('a', {}, crumbs[i]));
-            items.push(li)
-        }
-        let last = crumbs.length - 1;
-        let li = m('li', {class: 'is-active'}, m('a', {'aria-current': 'page'}, crumbs[last]));
-        items.push(li)
-        m.render(breadcrumbs, items);
-    }
+    return filename;
 }
 
 function setFile(value) {
@@ -147,36 +160,54 @@ function regSub(store, path, fn) {
     });
 }
 
-function renderQueryState(el) {
-    return isQuerying => {
-        if (isQuerying) {
-            m.render(el, m('i', { class: 'fas fa-spinner', 'aria-hidden': true }, ""));
+function renderFileList(el, dispatch) {
+    return function(json) {
+        let docs = json.Docs;
+        if (json.Docs == null) {
+            docs = [];
+        }
+        if (docs.length > 18) {
+            docs = docs.slice(0, 18);
+        }
+        m.render(el, m(FileList, {dispatch, docs}));
+    }
+}
+
+function renderBreadcrumbs(el) {
+    return function(filename) {
+        if (filename == null || filename === '') {
+            m.render(el, m(Breadcrumbs, {segments: []}));
             return;
         }
-        m.render(el, m('i', { class: 'fas fa-search', 'aria-hidden': true }, ""));
+        m.render(el, m(Breadcrumbs, {segments: filename.split('/')}));
+    }
+}
+
+function renderQueryState(el) {
+    return isQuerying => {
+        m.render(el, m(ProgressIndicator, {isQuerying}));
     };
 }
 
-function renderCode(code, highlight) {
-    return (file) => {
-        let name = file.name;
-        let content = file.content;
-        if (name == null || name === '') {
+function renderCode(el) {
+    return ({content, name}) => {
+        if (name == null || name === '' || content == null) {
             return;
         }
         let segments = name.split('.');
-        let last = segments.length - 1;
-        let className = 'line-numbers  language-' + segments[last];
-        code.parentElement.className =  className;
-        code.innerHTML = content || '';
-        if (content == null) {
+        let lang = segments[segments.length - 1];
+        let className = 'language-' + lang;
+        let g = Prism.languages[lang];
+        if (g == null) {
             return;
         }
-        highlight();
+        let html = Prism.highlight(content, g, "");
+        m.render(el, m(CodeBlock, {className, html}));
     }
 }
 
 function Exec(breadcrumbs, code, files, search, searchSpinner) {
+
     let rootReducer = Redux.combineReducers({
         query: queryReducer,
         file: fileReducer,
@@ -219,7 +250,7 @@ function Exec(breadcrumbs, code, files, search, searchSpinner) {
     search.addEventListener('focus', dispatchQueryTerm);
     window.addEventListener('hashchange', getLocationHash);
 
-    regSub(store, ['file'], renderCode(code, Prism.highlightAll));
+    regSub(store, ['file'], renderCode(code));
     regSub(store, ['file', 'name'], renderBreadcrumbs(breadcrumbs));
     regSub(store, ['file', 'name'], dispatchClear);
     regSub(store, ['file', 'name'], fetchFile);

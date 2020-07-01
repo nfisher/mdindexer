@@ -7,34 +7,50 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/tinylib/msgp/msgp"
 )
 
+func filePattern(language string) string {
+	switch language {
+	case "go":
+		return "\\.go$"
+	case "java":
+		return "\\.java$"
+	case "js":
+		return "\\.js$"
+	}
+	return ""
+}
+
 func main() {
+	var language string
 	var start string
-	var pattern string
-	flag.StringVar(&start, "start", "./", "search start")
-	flag.StringVar(&pattern, "glob", "", "file path pattern (e.g. .*.md)")
+
+	flag.StringVar(&start, "start", ".", "search start")
+	flag.StringVar(&language, "lang", "", "language (e.g. java, go, english)")
 	flag.Parse()
 
+	pattern := filePattern(language)
 	if pattern == "" {
-		log.Fatal("invalid glob pattern")
+		log.Fatal("invalid language specified")
 	}
 
+	paths := strings.Split(start, ",")
 	var stopWords = make(StopWords)
-	for _, w := range javaStopWords {
+	for _, w := range stopWordMap[language] {
 		stopWords[w] = true
 	}
 
 	ts := time.Now()
-	filenames, err := DocumentList(start, pattern)
+	filenames, err := DocumentList(paths, pattern)
 	if err != nil {
 		log.Fatalf("glob=failed start=%s pattern=%s error='%v'", start, pattern, err)
 	}
-	log.Printf("documentList=success start=`%s` pattern=`%s`\n", start, pattern)
+	log.Printf("documentList=success start=`%s` pattern=`%s` count=%d\n", start, pattern, len(filenames))
 
 	index := New(len(filenames))
 
@@ -59,7 +75,7 @@ func main() {
 
 	log.Printf("documents=%d words=%d latency=%v\n", index.Capacity(), index.WordCount(), time.Now().Sub(ts))
 
-	mux := BuildRoutes(start, index)
+	mux := BuildRoutes(paths, index)
 	log.Println("addr=127.0.0.1:8000")
 	err = http.ListenAndServe("127.0.0.1:8000", mux)
 	if err != nil {
@@ -90,6 +106,101 @@ func updateIndex(ch chan *Document, index *Index, wgig *sync.WaitGroup) {
 		index.Update(doc)
 	}
 	wgig.Done()
+}
+
+var jsStopWords = []string{
+	"abstract",
+	"arguments",
+	"await",
+	"boolean",
+	"break",
+	"byte",
+	"case",
+	"catch",
+	"char",
+	"class",
+	"const",
+	"continue",
+	"debugger",
+	"default",
+	"delete",
+	"do",
+	"double",
+	"else",
+	"enum",
+	"eval",
+	"export",
+	"extends",
+	"false",
+	"final",
+	"finally",
+	"float",
+	"for",
+	"function",
+	"goto",
+	"if",
+	"implements",
+	"import",
+	"in",
+	"instanceof",
+	"int",
+	"interface",
+	"let",
+	"long",
+	"native",
+	"new",
+	"null",
+	"package",
+	"private",
+	"protected",
+	"public",
+	"return",
+	"short",
+	"static",
+	"super",
+	"switch",
+	"synchronized",
+	"this",
+	"throw",
+	"throws",
+	"transient",
+	"true",
+	"try",
+	"typeof",
+	"var",
+	"void",
+	"volatile",
+	"while",
+	"with",
+	"yield",
+}
+
+var goStopWords = []string{
+	"break",
+	"case",
+	"chan",
+	"const",
+	"continue",
+	"default",
+	"defer",
+	"else",
+	"fallthrough",
+	"for",
+	"func",
+	"go",
+	"goto",
+	"if",
+	"import",
+	"interface",
+	"map",
+	"package",
+	"range",
+	"return",
+	"select",
+	"struct",
+	"switch",
+	"type",
+	"var",
 }
 
 var javaStopWords = []string{
@@ -147,7 +258,14 @@ var javaStopWords = []string{
 	"volatile",
 	"while",
 }
-var stopWordList = []string{"a", "about", "above", "above", "across", "after", "afterwards", "again", "against", "all", "almost", "alone", "along", "already", "also", "although", "always", "am", "among", "amongst", "amoungst", "amount", "an", "and", "another", "any", "anyhow", "anyone", "anything", "anyway", "anywhere", "are", "around", "as", "at", "back", "be", "became", "because", "become", "becomes", "becoming", "been", "before", "beforehand", "behind", "being", "below", "beside", "besides", "between", "beyond", "bill", "both", "bottom", "but", "by", "call", "can", "cannot", "cant", "co", "con", "could", "couldnt", "cry", "de", "describe", "detail", "do", "done", "down", "due", "during", "each", "eg", "eight", "either", "eleven", "else", "elsewhere", "empty", "enough", "etc", "even", "ever", "every", "everyone", "everything", "everywhere", "except", "few", "fifteen", "fify", "fill", "find", "fire", "first", "five", "for", "former", "formerly", "forty", "found", "four", "from", "front", "full", "further", "get", "give", "had", "has", "hasnt", "have", "he", "hence", "her", "here", "hereafter", "hereby", "herein", "hereupon", "hers", "herself", "him", "himself", "his", "how", "however", "hundred", "ie", "if", "in", "inc", "indeed", "interest", "into", "is", "it", "its", "itself", "keep", "last", "latter", "latterly", "least", "less", "ltd", "made", "many", "may", "me", "meanwhile", "might", "mill", "mine", "more", "moreover", "most", "mostly", "move", "much", "must", "my", "myself", "name", "namely", "neither", "never", "nevertheless", "next", "nine", "no", "nobody", "none", "noone", "nor", "not", "nothing", "now", "nowhere", "of", "off", "often", "on", "once", "one", "only", "onto", "or", "other", "others", "otherwise", "our", "ours", "ourselves", "out", "over", "own", "part", "per", "perhaps", "please", "put", "rather", "re", "same", "see", "seem", "seemed", "seeming", "seems", "serious", "several", "she", "should", "show", "side", "since", "sincere", "six", "sixty", "so", "some", "somehow", "someone", "something", "sometime", "sometimes", "somewhere", "still", "such", "system", "take", "ten", "than", "that", "the", "their", "them", "themselves", "then", "thence", "there", "thereafter", "thereby", "therefore", "therein", "thereupon", "these", "they", "thickv", "thin", "third", "this", "those", "though", "three", "through", "throughout", "thru", "thus", "to", "together", "too", "top", "toward", "towards", "twelve", "twenty", "two", "un", "under", "until", "up", "upon", "us", "very", "via", "was", "we", "well", "were", "what", "whatever", "when", "whence", "whenever", "where", "whereafter", "whereas", "whereby", "wherein", "whereupon", "wherever", "whether", "which", "while", "whither", "who", "whoever", "whole", "whom", "whose", "why", "will", "with", "within", "without", "would", "yet", "you", "your", "yours", "yourself", "yourselves"}
+var englishStopWords = []string{"a", "about", "above", "above", "across", "after", "afterwards", "again", "against", "all", "almost", "alone", "along", "already", "also", "although", "always", "am", "among", "amongst", "amoungst", "amount", "an", "and", "another", "any", "anyhow", "anyone", "anything", "anyway", "anywhere", "are", "around", "as", "at", "back", "be", "became", "because", "become", "becomes", "becoming", "been", "before", "beforehand", "behind", "being", "below", "beside", "besides", "between", "beyond", "bill", "both", "bottom", "but", "by", "call", "can", "cannot", "cant", "co", "con", "could", "couldnt", "cry", "de", "describe", "detail", "do", "done", "down", "due", "during", "each", "eg", "eight", "either", "eleven", "else", "elsewhere", "empty", "enough", "etc", "even", "ever", "every", "everyone", "everything", "everywhere", "except", "few", "fifteen", "fify", "fill", "find", "fire", "first", "five", "for", "former", "formerly", "forty", "found", "four", "from", "front", "full", "further", "get", "give", "had", "has", "hasnt", "have", "he", "hence", "her", "here", "hereafter", "hereby", "herein", "hereupon", "hers", "herself", "him", "himself", "his", "how", "however", "hundred", "ie", "if", "in", "inc", "indeed", "interest", "into", "is", "it", "its", "itself", "keep", "last", "latter", "latterly", "least", "less", "ltd", "made", "many", "may", "me", "meanwhile", "might", "mill", "mine", "more", "moreover", "most", "mostly", "move", "much", "must", "my", "myself", "name", "namely", "neither", "never", "nevertheless", "next", "nine", "no", "nobody", "none", "noone", "nor", "not", "nothing", "now", "nowhere", "of", "off", "often", "on", "once", "one", "only", "onto", "or", "other", "others", "otherwise", "our", "ours", "ourselves", "out", "over", "own", "part", "per", "perhaps", "please", "put", "rather", "re", "same", "see", "seem", "seemed", "seeming", "seems", "serious", "several", "she", "should", "show", "side", "since", "sincere", "six", "sixty", "so", "some", "somehow", "someone", "something", "sometime", "sometimes", "somewhere", "still", "such", "system", "take", "ten", "than", "that", "the", "their", "them", "themselves", "then", "thence", "there", "thereafter", "thereby", "therefore", "therein", "thereupon", "these", "they", "thickv", "thin", "third", "this", "those", "though", "three", "through", "throughout", "thru", "thus", "to", "together", "too", "top", "toward", "towards", "twelve", "twenty", "two", "un", "under", "until", "up", "upon", "us", "very", "via", "was", "we", "well", "were", "what", "whatever", "when", "whence", "whenever", "where", "whereafter", "whereas", "whereby", "wherein", "whereupon", "wherever", "whether", "which", "while", "whither", "who", "whoever", "whole", "whom", "whose", "why", "will", "with", "within", "without", "would", "yet", "you", "your", "yours", "yourself", "yourselves"}
+
+var stopWordMap = map[string][]string{
+	"english": englishStopWords,
+	"go":      goStopWords,
+	"java":    javaStopWords,
+	"js":      jsStopWords,
+}
 
 func writeFile(filename string, index *Index) error {
 	w, err := os.Create(filename)

@@ -10,8 +10,6 @@ import (
 	"github.com/nfisher/mdindexer/edit"
 )
 
-//go:generate msgp
-
 var (
 	ErrWordNotIndexed = fmt.Errorf("index does not contain word")
 )

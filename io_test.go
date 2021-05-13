@@ -52,7 +52,7 @@ func Test_extract_word_count_from_document(t *testing.T) {
 
 func Test_document_list(t *testing.T) {
 	t.Parallel()
-	list, _ := DocumentList("./testdata", ".*.md")
+	list, _ := DocumentList([]string{"./testdata"}, ".*.md")
 	expected := []string{"testdata/2018-04-06-Docker-for-Development.md", "testdata/2019-06-20-Maven-to-bazel-prep.md"}
 	if !cmp.Equal(list, expected) {
 		t.Errorf("DocumentList(\"./testdata\", \".*.md\") mismatch (-want +got)\n%s",

@@ -14,7 +14,7 @@ func Test_routes_ok(t *testing.T) {
 		contentType string
 	}{
 		"search":  {http.MethodGet, "/search?q=development", ApplicationJson},
-		"file":    {http.MethodGet, "/files/hello.html", TextHtml},
+		"file":    {http.MethodGet, "/files/testdata/hello.html", TextHtml},
 		"root":    {http.MethodGet, "/", TextHtml},
 		"main.js": {http.MethodGet, "/main.js", ApplicationJs},
 	}
@@ -30,14 +30,14 @@ func Test_routes_ok(t *testing.T) {
 				t.Errorf("NewRequest(%s, %s, ...) error=%v, want nil", tc.method, url, err)
 			}
 
-			mux := BuildRoutes("./testdata", index)
+			mux := BuildRoutes([]string{"testdata"}, index)
 			mux.ServeHTTP(w, r)
 			if w.Code != http.StatusOK {
-				t.Errorf("w.Code=%d, want 200 OK", w.Code)
+				t.Errorf("w.Code=%d, want 200", w.Code)
 			}
 			actual := w.Header().Get(HeaderContentType)
 			if actual != tc.contentType {
-				t.Errorf("Content-type=<%s>, want <%s> - %s", actual, tc.contentType, w.Body.String())
+				t.Errorf("Content-type=<%s>, want <%s>", actual, tc.contentType)
 			}
 		})
 	}

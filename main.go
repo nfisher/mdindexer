@@ -1,7 +1,6 @@
 package main
 
 import (
-	"compress/gzip"
 	"flag"
 	"log"
 	"net/http"
@@ -10,8 +9,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/tinylib/msgp/msgp"
 )
 
 func filePattern(language string) string {
@@ -73,7 +70,7 @@ func main() {
 	wg.Wait()
 	wgig.Wait()
 
-	log.Printf("documents=%d words=%d latency=%v\n", index.Capacity(), index.WordCount(), time.Now().Sub(ts))
+	log.Printf("documents=%d words=%d latency=%v\n", index.Capacity(), index.WordCount(), time.Since(ts))
 
 	mux := BuildRoutes(paths, index)
 	log.Println("addr=127.0.0.1:8000")
@@ -265,23 +262,6 @@ var stopWordMap = map[string][]string{
 	"go":      goStopWords,
 	"java":    javaStopWords,
 	"js":      jsStopWords,
-}
-
-func writeFile(filename string, index *Index) error {
-	w, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer w.Close()
-	gzw := gzip.NewWriter(w)
-	defer gzw.Close()
-
-	mw := msgp.NewWriter(gzw)
-	err = index.EncodeMsg(mw)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func readFile(filename string, stopWords StopWords) (*Document, error) {

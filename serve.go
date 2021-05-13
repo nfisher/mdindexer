@@ -2,11 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
+	"github.com/rakyll/statik/fs"
 	"log"
 	"net/http"
-
-	"github.com/rakyll/statik/fs"
+	"path/filepath"
 
 	_ "github.com/nfisher/mdindexer/statik"
 )
@@ -21,17 +20,21 @@ const (
 )
 
 func BuildRoutes(paths []string, index *Index) *http.ServeMux {
+	mux := http.NewServeMux()
+
 	files, err := fs.New()
 	if err != nil {
 		log.Fatal(err)
 	}
-	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(files))
+
 	for _, p := range paths {
-		prefix := fmt.Sprintf("/files/%s/", p)
-		mux.Handle(prefix, http.StripPrefix("/files/", http.FileServer(http.Dir("."))))
+		prefix := filepath.Join("/files", p)
+		mux.Handle(prefix + "/", http.StripPrefix(prefix, http.FileServer(http.Dir(p))))
 	}
+
 	mux.HandleFunc("/search", SearchIndex(index))
+
 	return mux
 }
 

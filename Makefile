@@ -8,8 +8,8 @@ all: dep $(SRC)
 
 .PHONY: dep
 dep:
-	go get -v golang.org/x/lint/golint
-	go get -v github.com/rakyll/statik
+	go install -v golang.org/x/lint/golint@latest
+	go install -v github.com/rakyll/statik@latest
 
 .PHONY: test
 test: cover.out

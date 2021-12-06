@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/rakyll/statik/fs"
 	"log"
+	"mime"
 	"net/http"
 	"path/filepath"
 
@@ -16,10 +17,11 @@ const (
 	HeaderContentType = `Content-type`
 	TextHtml          = `text/html; charset=utf-8`
 	ApplicationJson   = `application/json`
-	ApplicationJs     = `application/javascript`
+	ApplicationJs     = `application/javascript; charset=utf-8`
 )
 
 func BuildRoutes(paths []string, index *Index) *http.ServeMux {
+	mime.AddExtensionType(".js", ApplicationJs)
 	mux := http.NewServeMux()
 
 	files, err := fs.New()
@@ -30,7 +32,7 @@ func BuildRoutes(paths []string, index *Index) *http.ServeMux {
 
 	for _, p := range paths {
 		prefix := filepath.Join("/files", p)
-		mux.Handle(prefix + "/", http.StripPrefix(prefix, http.FileServer(http.Dir(p))))
+		mux.Handle(prefix+"/", http.StripPrefix(prefix, http.FileServer(http.Dir(p))))
 	}
 
 	mux.HandleFunc("/search", SearchIndex(index))
